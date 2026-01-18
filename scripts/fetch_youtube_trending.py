@@ -6,13 +6,20 @@ Saves a CSV to data/raw/.
 from googleapiclient.discovery import build
 import pandas as pd
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(PROJECT_ROOT / ".env")
+API_KEY = os.getenv("YOUTUBE_API_KEY")
 
+if not API_KEY:
+    raise ValueError("YOUTUBE_API_KEY not found in .env file")
+    
 # -----------------------------
 # CONFIGURATION
 # -----------------------------
 
-API_KEY = "AIzaSyAu7BpqODKIIAUlzhmAS3WOfchU7LZJESk"
 REGION_CODE = "US"
 MAX_RESULTS = 50
 
