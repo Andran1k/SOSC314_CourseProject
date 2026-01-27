@@ -1,71 +1,31 @@
 """
 explore_trending_data.py
 
-Initial exploratory analysis of YouTube trending video metadata.
-Used for Week 2 to assess data feasibility and basic properties.
-
-This script:
-- Loads the raw sample dataset
-- Prints basic counts and summaries
-- Shows example titles and descriptions
-- Computes category counts
+Week 3: Exploratory analysis of the processed dataset.
+Prints basic summaries that you can cite in the Week 3 report.
 """
 
 import pandas as pd
 from pathlib import Path
 
-DATA_RAW_PATH = Path("data/raw/sample_trending_videos.csv")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROCESSED_PATH = PROJECT_ROOT / "data" / "processed" / "trending_music_processed.csv"
 
-# -----------------------------
-# LOAD DATA
-# -----------------------------
+df = pd.read_csv(PROCESSED_PATH)
 
-df = pd.read_csv(DATA_RAW_PATH)
-
-print("=== BASIC DATA INFO ===")
-print(f"Number of videos: {len(df)}")
+print("=== BASIC INFO ===")
+print(f"Rows (videos): {len(df)}")
 print()
 
-# -----------------------------
-# MISSING VALUE CHECK
-# -----------------------------
-
-print("=== MISSING VALUES ===")
-print(df[["title", "description"]].isna().sum())
+print("=== TEXT AVAILABILITY ===")
+print("Empty titles:", (df["title"].fillna("").str.strip() == "").sum())
+print("Empty descriptions:", (df["description"].fillna("").str.strip() == "").sum())
 print()
 
-# -----------------------------
-# TEXT LENGTH CHECK
-# -----------------------------
-
-df["title_length"] = df["title"].astype(str).apply(len)
-df["description_length"] = df["description"].astype(str).apply(len)
-
-print("=== TEXT LENGTH SUMMARY ===")
-print(df[["title_length", "description_length"]].describe())
+print("=== LENGTH SUMMARIES ===")
+print(df[["title_len", "description_len", "document_len", "token_count"]].describe())
 print()
 
-# -----------------------------
-# SAMPLE EXAMPLES
-# -----------------------------
-
-print("=== SAMPLE TITLES ===")
-for i, title in enumerate(df["title"].head(5), start=1):
-    print(f"{i}. {title}")
-print()
-
-print("=== SAMPLE DESCRIPTIONS ===")
-for i, desc in enumerate(df["description"].head(3), start=1):
-    print(f"{i}. {desc[:200]}...")
-print()
-
-# -----------------------------
-# CATEGORY COUNTS
-# -----------------------------
-
-print("=== CATEGORY COUNTS ===")
-category_counts = df["category_id"].value_counts()
-print(category_counts)
-print()
-
-print("Exploratory analysis complete.")
+print("=== EXAMPLE DOCUMENTS (CLEAN) ===")
+for i, txt in enumerate(df["document_clean"].head(3), start=1):
+    print(f"\n--- Example {i} ---\n{txt[:400]}...")
