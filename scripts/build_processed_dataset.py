@@ -2,12 +2,28 @@ import re
 import pandas as pd
 from pathlib import Path
 
+# -----------------------------
+# PATHS
+# -----------------------------
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-RAW_PATH = PROJECT_ROOT / "data" / "raw" / "sample_trending_videos.csv"
+RAW_DIR = PROJECT_ROOT / "data" / "raw"
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
-PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-OUT_PATH = PROCESSED_DIR / "music_processed.csv"
+ASSETS_DIR = PROJECT_ROOT / "assets"
 
+PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+
+# Use the most recent raw CSV automatically
+raw_files = sorted(RAW_DIR.glob("*.csv"))
+if not raw_files:
+    raise FileNotFoundError("No raw CSV files found in data/raw/. Run fetch_youtube_trending.py first.")
+
+RAW_PATH = raw_files[-1]
+OUT_PATH = PROCESSED_DIR / "trending_music_processed.csv"
+PHRASES_PATH = ASSETS_DIR / "promo_phrases.txt"
+
+# -----------------------------
+# REGEX HELPERS
+# -----------------------------
 URL_PATTERN = re.compile(r"http\S+|www\.\S+")
 WS_PATTERN = re.compile(r"\s+")
 
@@ -15,66 +31,93 @@ def clean_text(s: str) -> str:
     if pd.isna(s):
         return ""
     s = str(s)
-    s = re.sub(URL_PATTERN, "", s)
-    s = re.sub(WS_PATTERN, " ", s).strip()
+    s = re.sub(URL_PATTERN, " ", s)          # remove URLs
+    s = re.sub(WS_PATTERN, " ", s).strip()   # normalize spaces
     return s
 
 def tokenize(s: str):
+    # Simple tokenizer: keep words/numbers/apostrophes
     return re.findall(r"[A-Za-z0-9']+", s.lower())
 
-def count_hashtags(s: str) -> int:
-    return len(re.findall(r"#\w+", str(s)))
+def load_phrases(path: Path):
+    phrases = []
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip().lower()
+            if line and not line.startswith("#"):
+                phrases.append(line)
+    return phrases
 
+def remove_phrases(text: str, phrases):
+    # Remove phrases as whole substrings (simple + transparent)
+    t = text.lower()
+    for p in phrases:
+        t = t.replace(p, " ")
+    t = re.sub(WS_PATTERN, " ", t).strip()
+    return t
+
+# -----------------------------
+# LOAD DATA
+# -----------------------------
 df = pd.read_csv(RAW_PATH)
 
-# Keep Music only (category_id=10)
+# Filter to Music category only
 df = df[df["category_id"].astype(str) == "10"].copy()
 
-# Clean text
+# Basic cleaning
+df["title"] = df["title"].fillna("")
+df["description"] = df["description"].fillna("")
 df["title_clean"] = df["title"].apply(clean_text)
 df["description_clean"] = df["description"].apply(clean_text)
-df["document_clean"] = (df["title_clean"] + " " + df["description_clean"]).str.strip()
 
-# Tokens and measurements
-df["tokens"] = df["document_clean"].apply(tokenize)
-df["token_count"] = df["tokens"].apply(len)
-df["unique_token_count"] = df["tokens"].apply(lambda t: len(set(t)))
-df["lexical_diversity"] = df.apply(
-    lambda r: (r["unique_token_count"] / r["token_count"]) if r["token_count"] > 0 else 0.0,
-    axis=1
-)
-df["tokens_joined"] = df["tokens"].apply(lambda t: " ".join(t))
+# Operationalization 1 (promo-inclusive document)
+df["document_promo"] = (df["title_clean"] + " " + df["description_clean"]).str.strip()
 
-# Simple punctuation/style features (title-based)
-df["exclamation_count"] = df["title"].astype(str).str.count("!")
-df["question_count"] = df["title"].astype(str).str.count(r"\?")
-df["title_hashtag_count"] = df["title"].apply(count_hashtags)
+# Operationalization 2 (semantic-filtered document)
+phrases = load_phrases(PHRASES_PATH)
+df["document_semantic"] = df["document_promo"].apply(lambda t: remove_phrases(t, phrases))
 
-# Caps ratio in title
-def caps_ratio(s: str) -> float:
-    s = str(s)
-    letters = [c for c in s if c.isalpha()]
-    if not letters:
-        return 0.0
-    caps = sum(1 for c in letters if c.isupper())
-    return caps / len(letters)
+# Tokenize both documents
+df["tokens_promo"] = df["document_promo"].apply(tokenize)
+df["tokens_semantic"] = df["document_semantic"].apply(tokenize)
 
-df["caps_ratio"] = df["title"].apply(caps_ratio)
+# Measurements (for description in report + diagnostics)
+df["token_count_promo"] = df["tokens_promo"].apply(len)
+df["token_count_semantic"] = df["tokens_semantic"].apply(len)
 
-# Label for ML: high views (median split)
+df["unique_token_count_promo"] = df["tokens_promo"].apply(lambda t: len(set(t)))
+df["unique_token_count_semantic"] = df["tokens_semantic"].apply(lambda t: len(set(t)))
+
+def lexical_diversity(unique_count, token_count):
+    return (unique_count / token_count) if token_count > 0 else 0.0
+
+df["lexdiv_promo"] = df.apply(lambda r: lexical_diversity(r["unique_token_count_promo"], r["token_count_promo"]), axis=1)
+df["lexdiv_semantic"] = df.apply(lambda r: lexical_diversity(r["unique_token_count_semantic"], r["token_count_semantic"]), axis=1)
+
+# A simple label (for later), median split
 median_views = df["view_count"].median()
 df["high_views"] = (df["view_count"] > median_views).astype(int)
 
+# Join tokens for vectorizers
+df["tokens_joined_promo"] = df["tokens_promo"].apply(lambda t: " ".join(t))
+df["tokens_joined_semantic"] = df["tokens_semantic"].apply(lambda t: " ".join(t))
+
+# Save
 keep_cols = [
     "video_id", "published_at", "region", "category_id",
     "view_count", "like_count", "comment_count",
     "title", "description", "tags",
-    "title_clean", "description_clean", "document_clean",
-    "token_count", "unique_token_count", "lexical_diversity",
-    "exclamation_count", "question_count", "title_hashtag_count", "caps_ratio",
-    "high_views", "tokens_joined"
+    "document_promo", "document_semantic",
+    "token_count_promo", "token_count_semantic",
+    "unique_token_count_promo", "unique_token_count_semantic",
+    "lexdiv_promo", "lexdiv_semantic",
+    "high_views",
+    "tokens_joined_promo", "tokens_joined_semantic",
 ]
 
 df[keep_cols].to_csv(OUT_PATH, index=False)
-print(f"Saved processed dataset: {OUT_PATH} (rows={len(df)})")
-print(f"Median view_count used for high_views split: {median_views}")
+
+print(f"Loaded raw: {RAW_PATH.name}")
+print(f"Saved processed: {OUT_PATH} (rows={len(df)})")
+print(f"Median views used for high_views: {median_views}")
+print(f"Promo phrases loaded: {len(phrases)} from {PHRASES_PATH}")
