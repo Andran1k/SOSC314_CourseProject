@@ -7,13 +7,20 @@ Week 3 upgrade:
 - Filter to one category (default: Music category_id=10)
 - Timestamped output file for reproducibility
 """
-
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning, module="google")
 from googleapiclient.discovery import build
 import pandas as pd
 from pathlib import Path
 import os
+import time
 from dotenv import load_dotenv
 from datetime import datetime
+
+# Retry on network timeout (WinError 10060 / connection timeout)
+REQUEST_TIMEOUT_RETRIES = 3
+REQUEST_RETRY_DELAY_SEC = 10
+DELAY_BETWEEN_REGIONS_SEC = 2
 
 # -----------------------------
 # PATH SETUP (PROJECT ROOT SAFE)
@@ -85,6 +92,8 @@ youtube = build("youtube", "v3", developerKey=API_KEY)
 #
 # df = pd.DataFrame(records).drop_duplicates(subset=["video_id"])
 
+# Four regions only. To collect more data from these same regions, run this script
+# periodically (e.g. daily); build_processed_dataset.py merges all raw CSVs.
 REGION_CODES = ["US", "GB", "CA", "AU"]
 TOTAL_TARGET_PER_REGION = 200
 
@@ -102,7 +111,16 @@ for REGION_CODE in REGION_CODES:
             maxResults=50,
             pageToken=next_page_token
         )
-        response = request.execute()
+        for attempt in range(REQUEST_TIMEOUT_RETRIES):
+            try:
+                response = request.execute()
+                break
+            except (TimeoutError, OSError) as e:
+                if attempt < REQUEST_TIMEOUT_RETRIES - 1:
+                    print(f"  {REGION_CODE}: timeout/connection error, retry in {REQUEST_RETRY_DELAY_SEC}s ({e!r})")
+                    time.sleep(REQUEST_RETRY_DELAY_SEC)
+                else:
+                    raise
 
         for item in response.get("items", []):
             snippet = item.get("snippet", {})
@@ -127,6 +145,8 @@ for REGION_CODE in REGION_CODES:
 
     all_records.extend(records)
     print(f"{REGION_CODE}: collected {len(records)} trending videos")
+    if REGION_CODE != REGION_CODES[-1]:
+        time.sleep(DELAY_BETWEEN_REGIONS_SEC)
 
 df = pd.DataFrame(all_records).drop_duplicates(subset=["video_id"])
 music_df = df[df["category_id"].astype(str) == "10"].copy()
