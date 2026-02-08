@@ -12,12 +12,11 @@ ASSETS_DIR = PROJECT_ROOT / "assets"
 
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
-# Use the most recent raw CSV automatically
-raw_files = sorted(RAW_DIR.glob("*.csv"))
+# Use all trending raw CSVs (combine for larger sample); exclude sample files
+raw_files = sorted(RAW_DIR.glob("trending_raw_*.csv"))
 if not raw_files:
     raise FileNotFoundError("No raw CSV files found in data/raw/. Run fetch_youtube_trending.py first.")
 
-RAW_PATH = raw_files[-1]
 OUT_PATH = PROCESSED_DIR / "trending_music_processed.csv"
 PHRASES_PATH = ASSETS_DIR / "promo_phrases.txt"
 
@@ -57,9 +56,10 @@ def remove_phrases(text: str, phrases):
     return t
 
 # -----------------------------
-# LOAD DATA
+# LOAD DATA (all raw trending files combined, deduplicated by video_id)
 # -----------------------------
-df = pd.read_csv(RAW_PATH)
+dfs = [pd.read_csv(p) for p in raw_files]
+df = pd.concat(dfs, ignore_index=True).drop_duplicates(subset=["video_id"])
 
 # Filter to Music category only
 df = df[df["category_id"].astype(str) == "10"].copy()
@@ -117,7 +117,7 @@ keep_cols = [
 
 df[keep_cols].to_csv(OUT_PATH, index=False)
 
-print(f"Loaded raw: {RAW_PATH.name}")
+print(f"Loaded raw: {len(raw_files)} file(s), {len(df)} music videos after dedup and category filter")
 print(f"Saved processed: {OUT_PATH} (rows={len(df)})")
 print(f"Median views used for high_views: {median_views}")
 print(f"Promo phrases loaded: {len(phrases)} from {PHRASES_PATH}")
