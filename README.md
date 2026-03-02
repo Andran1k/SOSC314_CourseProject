@@ -122,12 +122,14 @@ powershell -ExecutionPolicy Bypass -File scripts/publish_report.ps1
 - `scripts/compare_operationalizations_week4.py`: compares promo-inclusive and semantic-filtered text
 - `scripts/diagnostics_week5.py`: runs cross-validated robustness checks and saves summary outputs
 - `scripts/final_report_extensions.py`: runs the final title/description, timing, packaging, and promo-structure analyses
-- `scripts/publish_report.ps1`: exports the final notebook to `docs/index.html` for later publication
+- `scripts/publish_report.ps1`: exports the final notebook to `docs/index.html`, copies the source notebook into `docs/notebooks/`, and copies figures into `docs/figures/` for GitHub Pages
 
 ## Final Report Files
 
 - Source notebook: `notebooks/final_report.ipynb`
 - Render target for publication: `docs/index.html`
+- GitHub Pages notebook copy: `docs/notebooks/final_report.ipynb`
+- GitHub Pages figure copy: `docs/figures/`
 - GitHub Pages helper file: `docs/.nojekyll`
 
 ## Publishing Later
