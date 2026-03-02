@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YouTube Trending Music Metadata and Relative Engagement</title>
+  <style>
+    :root {
+      --bg: #f6f1e8;
+      --paper: #fffdf8;
+      --ink: #1f2430;
+      --muted: #5a6472;
+      --line: #d7cbb8;
+      --accent: #9c3d1e;
+      --accent-soft: #efe0d3;
+      --table-head: #f3eadf;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      background:
+        radial-gradient(circle at top left, rgba(156, 61, 30, 0.08), transparent 28%),
+        linear-gradient(180deg, #f3ede3 0%, var(--bg) 100%);
+      color: var(--ink);
+      line-height: 1.65;
+    }
+
+    .page {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 32px 20px 72px;
+    }
+
+    header, section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 26px 28px;
+      box-shadow: 0 10px 24px rgba(64, 41, 20, 0.05);
+      margin-bottom: 24px;
+    }
+
+    header {
+      box-shadow: 0 12px 30px rgba(64, 41, 20, 0.08);
+    }
+
+    h1, h2, h3 {
+      line-height: 1.2;
+      margin: 0 0 14px;
+      color: #1f1b18;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      letter-spacing: -0.03em;
+    }
+
+    h2 {
+      margin-top: 38px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+      font-size: 1.55rem;
+    }
+
+    h3 {
+      margin-top: 22px;
+      font-size: 1.08rem;
+      color: var(--accent);
+    }
+
+    p { margin: 0 0 16px; }
+
+    .meta {
+      color: var(--muted);
+      font-size: 0.98rem;
+      margin-bottom: 18px;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      margin-top: 16px;
+    }
+
+    .links a {
+      color: var(--accent);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(156, 61, 30, 0.35);
+    }
+
+    .lead {
+      font-size: 1.08rem;
+      max-width: 58rem;
+    }
+
+    .callout {
+      background: var(--accent-soft);
+      border-left: 4px solid var(--accent);
+      padding: 14px 16px;
+      margin: 18px 0 22px;
+      border-radius: 10px;
+    }
+
+    ul, ol {
+      margin: 0 0 16px 24px;
+    }
+
+    li { margin-bottom: 8px; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 18px 0 10px;
+      font-size: 0.97rem;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th { background: var(--table-head); }
+
+    figure { margin: 22px 0; }
+
+    figure img {
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: white;
+      display: block;
+    }
+
+    figcaption {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    @media (max-width: 720px) {
+      .page { padding: 18px 12px 48px; }
+      header, section { padding: 20px 18px; border-radius: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <p class="meta">SOSC 314 Final Project Report</p>
+      <h1>YouTube Trending Music Metadata and Relative Engagement</h1>
+      <p class="meta"><strong>Authors:</strong> Andranik Pambukhchyan, Asilbek Amonov</p>
+      <div class="links">
+        <a href="https://github.com/Andran1k/SOSC314_CourseProject">GitHub Repository</a>
+        <a href="../notebooks/final_report.ipynb">Source Notebook</a>
+      </div>
+      <p class="lead">
+        This report studies whether the language used in YouTube trending music-video metadata helps predict which videos receive relatively higher engagement within the trending set. The final analysis is restricted to the four English-speaking regions <code>US</code>, <code>GB</code>, <code>CA</code>, and <code>AU</code> so that language-based interpretation is not mixed across different languages.
+      </p>
+      <div class="callout">
+        <strong>Main takeaway:</strong> metadata language contains some predictive information, but the stronger final conclusion is that relative engagement in this sample reflects a mix of text, timing, and packaging signals rather than wording alone.
+      </div>
+    </header>
+
+    <section>
+      <h2>Research Question and Motivation</h2>
+      <p>
+        The project asks whether titles and descriptions help identify which trending music videos will sit above the median in view counts within the collected sample. This matters because metadata is public, strategic, and visible. It can contain artist names, collaboration cues, release framing, and promotional language that may help explain how attention is organized on the platform.
+      </p>
+      <p>
+        The project does not make a causal claim. Views also depend on recommendation exposure, artist popularity, thumbnails, release strategy, and label promotion. Instead, the goal is to test whether metadata is useful as a measurable signal and to see what kind of signal it really contains.
+      </p>
+    </section>
+
+    <section>
+      <h2>Data</h2>
+      <h3>Source and Unit of Analysis</h3>
+      <p>
+        The data comes from the YouTube Data API v3 using <code>videos.list</code> with <code>chart=mostPopular</code>. Each row represents one trending music video. The final main dataset is stored in <code>data/processed/trending_music_processed.csv</code> and includes only <code>US</code>, <code>GB</code>, <code>CA</code>, and <code>AU</code>. A separate archive file keeps the broader all-region version, but it is not used for the final language-sensitive claims.
+      </p>
+
+      <h3>Key Variables</h3>
+      <p>
+        The outcome variable is <code>high_views</code>, coded as 1 if a video's view count is above the sample median and 0 otherwise. The project uses promo-inclusive text, semantic-filtered text, title-only and description-only text, timing variables from <code>published_at</code>, collection-lag features from the raw files, and a few transparent title labels such as <code>official video</code> and <code>lyrics</code>.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Statistic</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Number of videos</td><td>136</td></tr>
+          <tr><td>Regions</td><td>US, GB, CA, AU</td></tr>
+          <tr><td>Median view count</td><td>280,821</td></tr>
+          <tr><td>Mean token count (promo)</td><td>179.9</td></tr>
+          <tr><td>Mean token count (semantic)</td><td>173.7</td></tr>
+          <tr><td>Mean lexical diversity (promo)</td><td>0.647</td></tr>
+          <tr><td>Mean lag to first collection</td><td>95.4 hours</td></tr>
+        </tbody>
+      </table>
+
+      <p class="small">
+        The sample is moderate in size, so the report relies on repeated cross-validation instead of a single train/test split.
+      </p>
+    </section>
+
+    <section>
+      <h2>Problem Setup and Methods</h2>
+      <p>
+        The main task is binary text classification: can we predict whether a trending music video is above the sample median in views? The baseline is a majority-class dummy classifier. The main text models use bag-of-words features with logistic regression and repeated stratified cross-validation.
+      </p>
+      <p>
+        The final report extends the original project in four ways:
+      </p>
+      <ol>
+        <li>title-only vs description-only vs combined text,</li>
+        <li>timing analysis from upload timestamps and collection lag,</li>
+        <li>release-format labels from titles,</li>
+        <li>promo and structure controls compared with text.</li>
+      </ol>
+      <p>
+        These additions matter because they move the project beyond one overall AUC number and give more concrete conclusions about what the model is learning.
+      </p>
+    </section>
+
+    <section>
+      <h2>Baseline Evaluation</h2>
+      <p>
+        The first result is still modest but real. The dummy baseline stays at chance, while the best main text model, TF-IDF plus logistic regression, reaches about <strong>0.694 AUC</strong> on the four-region sample. That is not strong prediction, but it is enough to say that metadata language is informative.
+      </p>
+      <p>
+        The earlier promo-versus-semantic diagnostic still holds as well. Promo and semantic text perform almost identically with Count features, so semantic filtering helps interpretation more than prediction.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Model / Check</th>
+            <th>AUC (mean +/- sd)</th>
+            <th>Interpretation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Dummy baseline</td><td>0.500 +/- 0.000</td><td>Chance-level behavior, as expected.</td></tr>
+          <tr><td>Count (promo, min_df = 2)</td><td>0.634 +/- 0.130</td><td>Some predictive signal, but modest.</td></tr>
+          <tr><td>Count (semantic, min_df = 2)</td><td>0.633 +/- 0.109</td><td>Nearly identical to promo text.</td></tr>
+          <tr><td>TF-IDF (promo, min_df = 2)</td><td>0.694 +/- 0.129</td><td>Best main text model in the report.</td></tr>
+        </tbody>
+      </table>
+
+      <figure>
+        <img src="../figures/diagnostics_week5_auc_cv.png" alt="Cross-validated diagnostics figure">
+        <figcaption>
+          Figure 1. Cross-validated diagnostics on the English-only sample. Promo and semantic text perform similarly, while TF-IDF improves over simple count features.
+        </figcaption>
+      </figure>
+    </section>
+
+    <section>
+      <h2>New Finding 1: The signal is not only in titles</h2>
+      <p>
+        A natural expectation is that titles carry most of the predictive signal because they are short, visible, and heavily branded. The four-region results are more interesting than that.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Text source</th>
+            <th>AUC (mean +/- sd)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Title only</td><td>0.651 +/- 0.100</td></tr>
+          <tr><td>Description only</td><td>0.685 +/- 0.128</td></tr>
+          <tr><td>Title + description</td><td>0.689 +/- 0.128</td></tr>
+        </tbody>
+      </table>
+
+      <p>
+        Description-only text performs almost as well as the combined model, while title-only text is weaker. This is an important change to the project's interpretation. The report should not claim that descriptions are just noise. In this sample, descriptions appear to carry a large share of the signal.
+      </p>
+
+      <figure>
+        <img src="../figures/final_title_description_auc.png" alt="Title only, description only, and combined text AUC comparison">
+        <figcaption>
+          Figure 2. Description-only text performs surprisingly close to the combined model, while title-only text is weaker.
+        </figcaption>
+      </figure>
+    </section>
+
+    <section>
+      <h2>New Finding 2: Timing and structure matter at least as much as text</h2>
+      <p>
+        The strongest new result comes from the timing extension. A model using only timing and basic structure features reaches about <strong>0.724 AUC</strong>, which is higher than the <strong>0.689 AUC</strong> from text alone. Combining text with timing and structure pushes the result slightly higher again to about <strong>0.728 AUC</strong>.
+      </p>
+      <p>
+        This does not make text unimportant. It means that release timing, collection lag, and simple packaging variables are very informative in this sample. It also strengthens the project's substantive conclusion: relative engagement is not only about wording.
+      </p>
+      <p>
+        The lag result is also worth noting because it goes against the simplest expectation. Above-median videos have a longer mean lag to first collection in our data than below-median videos. That suggests the lag variable is picking up release-cycle patterns rather than a direct measure of how quickly a video truly entered YouTube's trending system.
+      </p>
+
+      <figure>
+        <img src="../figures/final_timing_patterns.png" alt="Timing patterns figure">
+        <figcaption>
+          Figure 3. Timing variables are informative, but weekday patterns should be treated descriptively because some days have small cell counts.
+        </figcaption>
+      </figure>
+    </section>
+
+    <section>
+      <h2>New Finding 3: Packaging labels matter, but unevenly</h2>
+      <p>
+        The report codes three simple title labels: <code>official video</code>, <code>lyrics / lyric video</code>, and collaboration markers such as <code>feat</code> or <code>ft</code>. These labels are transparent and easy to explain, which makes them useful for interpretation even though they are not perfect.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Count</th>
+            <th>High-view rate</th>
+            <th>Rest-of-sample rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Official video</td><td>23</td><td>0.652</td><td>0.469</td></tr>
+          <tr><td>Lyrics / lyric video</td><td>13</td><td>0.692</td><td>0.480</td></tr>
+          <tr><td>Feat / collaboration</td><td>11</td><td>0.545</td><td>0.496</td></tr>
+        </tbody>
+      </table>
+
+      <p>
+        Official-video and lyric-style labels are associated with higher relative engagement in this sample, while collaboration markers are weaker. This helps the project say something concrete about music-release packaging conventions rather than only about abstract word frequencies.
+      </p>
+
+      <figure>
+        <img src="../figures/final_release_type_high_views.png" alt="Release label high-view rate comparison">
+        <figcaption>
+          Figure 4. Official-video and lyric-style labels are associated with higher relative engagement, while collaboration markers are weaker.
+        </figcaption>
+      </figure>
+    </section>
+
+    <section>
+      <h2>New Finding 4: Promo and structure carry overlapping signal</h2>
+      <p>
+        The final extension compares text with a small set of promo and structure variables such as promo share, title length, description length, and lexical diversity. These features do contain some signal on their own, reaching about <strong>0.659 AUC</strong>. However, when they are added back to the text model, they do not improve performance beyond text alone.
+      </p>
+      <p>
+        This suggests that promo and structure variables overlap with information already present in the text rather than adding a clearly independent signal. The project therefore should not conclude that a simple "more promo means more views" pattern explains the data.
+      </p>
+
+      <figure>
+        <img src="../figures/final_promo_structure_signal.png" alt="Promo and structure signal figure">
+        <figcaption>
+          Figure 5. Promo and structure variables matter, but they do not clearly improve prediction once text is already included.
+        </figcaption>
+      </figure>
+    </section>
+
+    <section>
+      <h2>Interpretation and Final Conclusion</h2>
+      <p>
+        The strongest final conclusion is more nuanced than the earlier version of the project. Metadata language does contain predictive information about relative engagement among trending music videos in <code>US</code>, <code>GB</code>, <code>CA</code>, and <code>AU</code>. The best text model performs better than chance, and the promo-versus-semantic comparison still shows that semantic filtering helps interpretation more than prediction.
+      </p>
+      <p>
+        But the new analyses show that text is only one part of the story. Description text carries almost as much signal as the combined title-and-description field, which means descriptions should not be dismissed. Timing and basic structural variables are at least as important as text in this sample, and some packaging labels like <code>official video</code> and <code>lyrics</code> are associated with higher relative engagement. Promo and structure variables matter too, but mainly as overlapping signal rather than a clean independent source of predictive power.
+      </p>
+      <p>
+        Taken together, the project supports a stronger and more defensible claim than before: <strong>relative engagement among trending music videos is associated with a mixture of language, timing, and packaging signals rather than a pure effect of wording alone.</strong> The model is not simply learning catchy phrases. It is learning how releases are presented, when they appear, and which metadata conventions travel with higher-view videos in this English-language trending sample.
+      </p>
+      <p>
+        Just as importantly, the report still does not support a causal interpretation. It does not show that rewriting a title would raise views, and it does not automatically generalize beyond the trending music context. What it does show is that visible metadata and basic release context together provide a modest but meaningful signal of relative performance.
+      </p>
+    </section>
+
+    <section>
+      <h2>Limitations and Future Work</h2>
+      <ol>
+        <li>The project studies trending music videos only, not all YouTube uploads.</li>
+        <li>The final analysis is limited to four English-speaking regions for interpretability.</li>
+        <li><code>published_at</code> timing is in UTC and may not perfectly match local release strategy.</li>
+        <li><code>lag_hours_first_seen</code> is based on the first collection timestamp in our raw files, not YouTube's true internal trending timestamp.</li>
+        <li>The release labels are rule-based and transparent, but they are still imperfect measurements.</li>
+        <li>The sample is moderate in size, so some descriptive breakdowns should be interpreted cautiously.</li>
+      </ol>
+      <p>
+        The clearest next steps would be to collect a longer time window, improve the timing measurements, separate boilerplate description language from content language more carefully, and compare the same framework with one or two non-music categories.
+      </p>
+    </section>
+
+    <section>
+      <h2>References</h2>
+      <ul>
+        <li>YouTube Data API v3 documentation for <code>videos.list</code> and <code>chart=mostPopular</code>.</li>
+        <li>pandas documentation.</li>
+        <li>matplotlib documentation.</li>
+      </ul>
+      <p class="small">
+        Generative AI acknowledgment: generative AI tools were used for drafting, restructuring, and code assistance during project development. Final claims and report text were checked against repository outputs.
+      </p>
+    </section>
+  </main>
+</body>
+</html>

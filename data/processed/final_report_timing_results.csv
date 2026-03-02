@@ -1,0 +1,13 @@
+model,auc_mean,auc_sd,acc_mean,acc_sd,n_folds,section,high_view_rate,lag_hours_mean,lag_hours_median,count
+Text only,0.6890331280441171,0.12802829733072027,0.6324175824175824,0.126028468648407,15.0,model_comparison,,,,
+Timing + structure only,0.7238457513182789,0.08137558387306514,0.6688644688644689,0.0669713882774145,15.0,model_comparison,,,,
+Text + timing + structure,0.7284848850782916,0.07462285518446968,0.6593406593406593,0.07777338955249079,15.0,model_comparison,,,,
+Monday,0.6666666666666666,,,,,weekday_high_view_rate,0.6666666666666666,,,
+Tuesday,0.8,,,,,weekday_high_view_rate,0.8,,,
+Wednesday,0.625,,,,,weekday_high_view_rate,0.625,,,
+Thursday,0.4482758620689655,,,,,weekday_high_view_rate,0.4482758620689655,,,
+Friday,0.6037735849056604,,,,,weekday_high_view_rate,0.6037735849056604,,,
+Saturday,0.32,,,,,weekday_high_view_rate,0.32,,,
+Sunday,0.0,,,,,weekday_high_view_rate,0.0,,,
+0,84.62323937908496,60.769444444444446,68.0,,,lag_summary,,84.62323937908496,60.769444444444446,68.0
+1,106.18310049019608,68.75041666666667,68.0,,,lag_summary,,106.18310049019608,68.75041666666667,68.0

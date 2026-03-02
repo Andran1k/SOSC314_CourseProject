@@ -23,9 +23,10 @@ print("Empty descriptions:", (df["description"].fillna("").str.strip() == "").su
 print()
 
 print("=== LENGTH SUMMARIES ===")
-print(df[["title_len", "description_len", "document_len", "token_count"]].describe())
+print(df[["token_count_promo", "token_count_semantic", "lexdiv_promo", "lexdiv_semantic"]].describe())
 print()
 
 print("=== EXAMPLE DOCUMENTS (CLEAN) ===")
-for i, txt in enumerate(df["document_clean"].head(3), start=1):
-    print(f"\n--- Example {i} ---\n{txt[:400]}...")
+for i, txt in enumerate(df["document_promo"].head(3), start=1):
+    safe_txt = str(txt[:400]).encode("cp1252", errors="replace").decode("cp1252")
+    print(f"\n--- Example {i} ---\n{safe_txt}...")
